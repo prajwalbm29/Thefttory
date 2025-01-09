@@ -7,11 +7,13 @@ const session = require('express-session')
 const passport = require('passport')
 const mongoStore = require('connect-mongo')
 const connectDB = require('./Databases/DatabaseConnection')
-const dotenv = require('dotenv')
+require('dotenv').config();
+const AadhaarDetails = require('./Databases/AadhaarDetails');
+
+
 const adminRouter = require('./Admin/admin-app')
+const policeRouter = require('./Police/police-app');
 
-
-dotenv.config();
 // Database connection
 connectDB();
 
@@ -39,8 +41,20 @@ app.use(session({
 app.use(passport.initialize())
 app.use(passport.session())
 
+app.get('/api/getdata', async (req, res) => {
+    const { body: {aadhaarNo}} = req;
+    try {
+        const userData = await AadhaarDetails.findOne({ aadhaarNo: aadhaarNo }, 'name dob');
+        if (!userData) return res.status(404).json({ message: "Aadhaar does not exists" });
+        return res.status(200).send(userData);
+    } catch (error) {
+        console.log("Error in geting data : ", error);
+        return res.status(500).json({ message: "Server Error"});
+    }
+})
 
-app.use('/api/admin', adminRouter)
+app.use('/api/admin', adminRouter);
+app.use('/api/police', policeRouter);
 
 const PORT = process.env.PORT || 7001
 app.listen(PORT, () => {

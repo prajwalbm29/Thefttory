@@ -1,7 +1,7 @@
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const AdminDB = require('../../Databases/Admin');
-const encrypt = require('../Admin-validation-Encryption/encription');
+const encrypt = require('../../encryption/encription');
 
 passport.serializeUser((user, done) => {
     console.log("Serializing the admin : ", user);
