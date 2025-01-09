@@ -1,39 +1,44 @@
-const passport = require('passport')
-const Localstrategy = require('passport-local')
-const AdminDB = require('../../Databases/Admin')
-const comparePassword = require('../Admin-validation-Encryption/encription')
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const AdminDB = require('../../Databases/Admin');
+const encrypt = require('../Admin-validation-Encryption/encription');
 
 passport.serializeUser((user, done) => {
-    console.log("Serialization of admin : ", user._id);
-    done(null, user._id);
+    console.log("Serializing the admin : ", user);
+    done(null, user.aadhaarNo);
 })
 
-passport.deserializeUser(async (_id, done) => {
-    console.log("Deserialization of the user : ", _id);
+passport.deserializeUser(async (aadhaarNo, done) => {
+    console.log("Deserialzing admin : ", aadhaarNo);
     try {
-        const findAdmin = await AdminDB.findById(_id);
-        if (!findAdmin) throw new Error("Unauthorized..!");
-        done(null, findAdmin);
+        const user = await AdminDB.findOne({ aadhaarNo: aadhaarNo });
+        console.log("User in Desrialization : ", user);
+        if (!user) throw new Error("Unauthorized Admin");
+        done(null, user);
     } catch (error) {
-        console.log("Error in deserialization : ", error);
         done(error, null);
     }
 })
 
-module.exports = passport.use(
-    new Localstrategy(
-        {usernameField: "aadhaar", passwordField: "password"},
-        async (aadhaar, password, done) => {
+passport.use(
+    new LocalStrategy(
+        { usernameField: "aadhaarNo", passwordField: "password" },
+        async (username, password, done) => {
+            console.log("Inside Verification : ");
+            console.log("AadhaarNo: ", username);
+            console.log("Password : ", password);
             try {
-                console.log("Inside passport");
-                const findAdmin = await AdminDB.findOne({aadhaar});
-                if (!findAdmin) throw new Error("Admin not found..!");
-                if (!comparePassword(password, findAdmin.password)) throw new Error("Invalid credentials..!");
-                done(null, findAdmin);
+                const user = await AdminDB.findOne({ aadhaarNo: username });
+                if (!user) throw new Error("Admin does not exists");
+                const comPass = encrypt.comparePassword(password, user.password);
+                if (!comPass) throw new Error("Invalid credentials");
+                done(null, user);
             } catch (error) {
-                console.log("Error in local strategy : ", error);
+                console.log("Error in passport : ", error);
                 done(error, null);
             }
         }
     )
-)
+);
+
+module.exports = passport;

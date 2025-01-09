@@ -1,34 +1,14 @@
-const { isEmail } = require('validator');
-
 const AdminValidation = {
-    aadhaar: {
-        validate: (value) => {
-            const aadhaarRegex = /^\d{12}$/; // Ensures exactly 12 digits
-            return aadhaarRegex.test(value);
-        },
-        message: 'Invalid Aadhaar number! Aadhaar must be a 12-digit numeric value.'
-    },
-    email: {
-        validate: (value) => {
-            return isEmail(value); // Using validator's isEmail function
-        },
-        message: 'Enter the correct email format'
-    },
-    phone: {
-        validate: (value) => {
-            const phoneRegex = /^\d{10}$/; // Ensures exactly 10 digits
-            return phoneRegex.test(value);
-        },
-        message: 'Invalid Phone Number..! Phone number should be 10 digits'
+    aadhaarNo: {
+        isLength: { options: { min: 12, max: 12 }, errorMessage: 'Aadhaar must be exactly 12 digits.' },
+        isNumeric: { errorMessage: 'Aadhaar must contain only numbers.' },
     },
     password: {
-        validate: (value) => {
-            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-            return passwordRegex.test(value);
+        isStrongPassword: {
+            options: { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 },
+            errorMessage: 'Password must be at least 8 characters long and include uppercase, lowercase, number, and symbol.',
         },
-        message: 'Password should be strong',
-        required: true
-    }
+    },
 };
 
 module.exports = AdminValidation;

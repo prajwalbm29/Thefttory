@@ -1,20 +1,10 @@
 const mongoose = require('mongoose')
 
 const AdminSchema = new mongoose.Schema({
-    aadhaar: {
+    aadhaarNo: {
         type: String,
         unique: true,
         required: true
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    phone: {
-        type: String,
-        required: true,
-        unique: true
     },
     password: {
         type: String,
@@ -22,6 +12,6 @@ const AdminSchema = new mongoose.Schema({
     }
 })
 
-const AdminDB = mongoose.model('Admin', AdminSchema);
+const AdminDB = mongoose.model('admins', AdminSchema);
 
 module.exports = AdminDB
