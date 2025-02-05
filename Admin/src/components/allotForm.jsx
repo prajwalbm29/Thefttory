@@ -62,6 +62,12 @@ function AllotComplaints({ policeId, closeModal }) {
     }
   };
 
+  if (isLoading) {
+    return(
+      <LoadingScreen />
+    )
+  }
+
   return (
     <div className="modal-overlay">
       <div className="close-icon" onClick={closeModal}>✖</div>

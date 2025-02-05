@@ -9,6 +9,8 @@ const AadhaarDetails = require('../Databases/AadhaarDetails');
 const nodemailer = require('nodemailer');
 const OtpVerificationModal = require('../Databases/OtpVerification');
 const policeDB = require('../Databases/PoliceDetails');
+const CellPhoneComplaint = require('../Databases/cellPhoneComplaintModal');
+const Allotment = require('../Databases/allotComplaints');
 
 router.get('/', (req, res) => {
     res.send('Hello Admin');
@@ -191,6 +193,65 @@ router.post('/declineAccess', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error.' });
     }
 })
+
+router.get('/getComplaints/:id?', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        if (id) {
+            console.log("Police Id ", id);
+            const data = await Allotment.findOne({ policeId: id});
+            if (!data) return res.status(200).json([]);
+            return res.status(200).json(data.complaintId);
+        } else {
+            const complaints = await CellPhoneComplaint.find({}, "lostLocation lostDate complaintDate status");
+            return res.status(200).json(complaints);
+        }
+    } catch (error) {
+        console.error('Error fetching complaints:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
+})
+
+router.post('/allotComplaint', async (req, res) => {
+    const { body : {policeId, complaintId}} = req;
+    try {
+        const data = await Allotment.findOne({ policeId });
+        if (!data) {
+            await Allotment.create({
+                policeId: policeId,
+                complaintId: [complaintId]
+            })
+            return res.sendStatus(200);
+        }
+        data.complaintId.push(complaintId);
+        await data.save();
+        return res.sendStatus(200);
+    } catch (error) {
+        console.log("Error in allot complaint ", error);
+        return res.status(500).json({ message: "Server Error."});
+    }
+})
+
+router.post('/removeAllotment', async (req, res) => {
+    const { policeId, complaintId } = req.body;
+    
+    try {
+        const data = await Allotment.findOne({ policeId });
+        if (!data) {
+            return res.status(404).json({ message: 'Police officer not found or no complaints assigned.' });
+        }
+
+        data.complaintId.pull(complaintId);
+        
+        await data.save();
+        
+        return res.status(200).json({ message: 'Complaint removed successfully.' });
+    } catch (error) {
+        console.log("Error in remove complaint ", error);
+        return res.status(500).json({ message: 'Server Error.' });
+    }
+});
 
 
 module.exports = router;
