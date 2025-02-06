@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { View, Image, TouchableOpacity, Text, StyleSheet, Animated } from "react-native";
+import { View, Image, TouchableOpacity, Text, StyleSheet, Animated, Button, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import userData from "./userData";
 
 export default function Header() {
   const router = useRouter();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [headerHeight] = useState(new Animated.Value(100));
-  const [head, setHead] = useState("Home Page");
 
   const handleNavigation = (page) => {
     router.push(`./${page}`);
@@ -20,10 +20,35 @@ export default function Header() {
   const toggleDropdown = () => {
     setDropdownVisible(!dropdownVisible);
     Animated.spring(headerHeight, {
-      toValue: dropdownVisible ? 100 : 250, 
+      toValue: dropdownVisible ? 100 : 250,
       useNativeDriver: false,
     }).start();
   };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Confirm Logout",
+      "Are you sure you want to log out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Logout",
+          onPress: async () => {
+            try {
+              await userData.logout();
+              router.replace("/");
+            } catch (error) {
+              console.error("Logout error:", error);
+              Alert.alert("Error", "An error occurred during logout.");
+            }
+          }
+        }
+      ]
+    );
+  }
 
   return (
     <Animated.View style={[styles.header, { height: headerHeight }]}>
@@ -31,7 +56,7 @@ export default function Header() {
         source={require('@/assets/images/Thefttory.png')} // Image URL
         style={styles.logo}
       />
-      
+
       <TouchableOpacity onPress={toggleDropdown}>
         <Text style={styles.headerLink}>Menu</Text>
       </TouchableOpacity>
@@ -53,6 +78,9 @@ export default function Header() {
           </TouchableOpacity>
         </View>
       )}
+
+      <Button title="Logout" color="red" onPress={handleLogout} />
+
     </Animated.View>
   );
 }

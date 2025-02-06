@@ -1,6 +1,5 @@
 // Imports
 const express = require('express')
-const mongoose = require('mongoose')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const session = require('express-session')
@@ -9,16 +8,20 @@ const mongoStore = require('connect-mongo')
 const connectDB = require('./Databases/DatabaseConnection')
 require('dotenv').config();
 const AadhaarDetails = require('./Databases/AadhaarDetails');
-
+const bodyParser = require('body-parser')
 
 const adminRouter = require('./Admin/admin-app')
 const policeRouter = require('./Police/police-app');
+const publicRouter = require('./Public/public-app');
 
 // Database connection
 connectDB();
 
 const app = express()
 
+// Increase the request size limit
+app.use(express.json({ limit: '50mb' }));  // Set the JSON limit to 50MB
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const corsOptions = {
     origin: "*",
@@ -59,6 +62,7 @@ app.post('/api/getdata', async (req, res) => {
 
 app.use('/api/admin', adminRouter);
 app.use('/api/police', policeRouter);
+app.use('/api/public', publicRouter);
 
 const PORT = process.env.PORT || 7001
 app.listen(PORT, '0.0.0.0',() => {

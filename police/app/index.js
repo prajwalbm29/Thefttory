@@ -1,108 +1,143 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import userDetails from './components/userData';
+import { serverURL } from "./ServerIP/ipAddress";
+import Loading from "./loadingScreen/loading";
 
 export default function AadhaarValidationPage() {
-  const [aadhaarNo, setAadhaarNo] = useState("");
+  const [policeId, setPoliceId] = useState("");
   const [isReadonly, setIsReadonly] = useState(false);
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
+  const [position, setPosition] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtpInput, setShowOtpInput] = useState(false);
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  const serverRouter = "192.168.1.6:7003";
+  if (loading) {
+    return (
+      <Loading />
+    )
+  }
 
   // Function to validate Aadhaar and fetch details
   const validateAadhaar = async () => {
-    if (aadhaarNo.length !== 12) {
-      Alert.alert("Invalid Aadhaar", "Aadhaar number must be 12 digits.");
+    if (policeId.length !== 5) {
+      Alert.alert("Invalid Police Id", "Police ID must be 5 digits.");
       return;
     }
     try {
-      const response = await fetch(`http://${serverRouter}/api/getdata`, {
+      setLoading(true);
+      const response = await fetch(`${serverURL}/api/police/getData`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aadhaarNo }),
+        body: JSON.stringify({ policeId }),
       });
       const data = await response.json();
       console.log("Inside validateAadhaar : ", data)
 
       if (response.status !== 200) {
-        Alert.alert("Error", "Aadhaar not found.");
+        Alert.alert("Error", `${data.message}`);
       } else {
         setIsReadonly(true);
         setName(data.name);
-        setDob(data.dob);
+        setDob(data.dob.substring(0, 10));
+        setPosition(data.position);
       }
     } catch (error) {
-      Alert.alert("Server Error", "Unable to validate Aadhaar.");
+      Alert.alert("Server Error", "Unable to validate Police Id.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Function to generate OTP
   const generateOtp = async () => {
     try {
-      const response = await fetch(`http://${serverRouter}/api/police/generateOTP`, {
+      setLoading(true);
+      const response = await fetch(`${serverURL}/api/police/generateOTP`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aadhaarNo }),
+        body: JSON.stringify({ policeId }),
       });
-
-      console.log("Inside generate OTP : ", response)
 
       if (response.status !== 200) {
         Alert.alert("Error", `Server error in sending OTP.`);
       } else {
-        Alert.alert("Success", "OTP sent successfully.");
+        Alert.alert("Success", "OTP sent to the email successfully.");
         setShowOtpInput(true);
       }
     } catch (error) {
       Alert.alert("Server Error", "Unable to send OTP.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Function to verify OTP
   const verifyOtp = async () => {
     try {
-      const response = await fetch(`http://${serverRouter}/api/police/verifyOTP`, {
+      setLoading(true);
+      const response = await fetch(`${serverURL}/api/police/verifyOTP`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aadhaarNo, otp }),
+        body: JSON.stringify({ policeId, otp }),
       });
 
       const data = await response.json();
       console.log("Inside verify otp : ", data)
 
-      if (response.status === 200) {
-        router.push("/(tab)");
-      } else {
-        Alert.alert("Error", `Invalid OTP or OTP Time out.`);
+      if (response.status === 500) {
+        Alert.alert("Error", "Server Error");
+        return;
       }
+
+      if (response.status === 400) {
+        Alert.alert("Error", `Otp expired or Invalid Otp.`);
+        return;
+      }
+
+      if (response.status === 401) {
+        Alert.alert("Error", `OTP Timed out.`);
+        return;
+      }
+
+      await userDetails.login(policeId);
+
+      const user = await userDetails.getUserData();
+      console.log("User stored in ", user);
+
+      router.replace('./components/home');
+      // router.push("./components/home");
     } catch (error) {
-      Alert.alert("Server Error", `Unable to verify OTP. ${error}`);
+      console.log("Error in otp verification", error);
+      Alert.alert("Server Error", `Unable to verify OTP.`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Aadhaar Verification</Text>
+      <Text style={styles.title}>Police Id Verification</Text>
       <TextInput
         style={[styles.input, isReadonly && styles.readonlyInput]}
-        placeholder="Enter Aadhaar Number"
-        value={aadhaarNo}
-        onChangeText={setAadhaarNo}
-        keyboardType="numeric"
-        maxLength={12}
+        placeholder="Enter Police Id"
+        value={policeId}
+        onChangeText={setPoliceId}
+        maxLength={5}
         editable={!isReadonly}
       />
       {!isReadonly && (
-        <Button title="Validate Aadhaar" onPress={validateAadhaar} />
+        <Button title="Validate Police Id" onPress={validateAadhaar} />
       )}
       {isReadonly && (
         <View style={styles.detailsContainer}>
           <Text style={styles.label}>Name: {name}</Text>
           <Text style={styles.label}>DOB: {dob}</Text>
+          <Text style={styles.label}>position: {position}</Text>
           <View style={styles.buttonGroup}>
             <Button title="Data is Correct" onPress={generateOtp} />
             <Button
@@ -129,6 +164,8 @@ export default function AadhaarValidationPage() {
           <Button title="Verify OTP" onPress={verifyOtp} />
         </View>
       )}
+
+      <Button title="Navigate" onPress={() => router.push("./components/about")} />
     </View>
   );
 }

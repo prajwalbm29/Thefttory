@@ -57,26 +57,19 @@ router.post('/logout', (req, res) => {
     }
 });
 
-// Generate OTP and send via email
 router.post('/generateOTP', async (req, res) => {
     // if (!req.session.isLogged) {
     //     return res.status(401).json({ error: 'Unauthorized' });
     // }
-
+    const { body: { aadhaarNo } } = req;
     try {
-        const aadhaar = req.body.aadhaarNo;
-
         // Finding the old otp and deleting
-        await OtpVerificationModal.findOneAndDelete({ aadhaarNo: aadhaar });
-
-        const userData = await AadhaarDetails.findOne({ aadhaarNo: aadhaar });
-
+        await OtpVerificationModal.findOneAndDelete({ aadhaarNo: aadhaarNo });
+        const userData = await AadhaarDetails.findOne({ aadhaarNo: aadhaarNo });
         const otp = Math.floor(1000 + Math.random() * 9000).toString();
         console.log("OTP: ", otp);
         const hashOTP = encrypt.hashPassword(otp);
-
         const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 minutes
-
         const config = {
             service: 'gmail',
             auth: {
@@ -84,25 +77,20 @@ router.post('/generateOTP', async (req, res) => {
                 pass: process.env.PASSWORD,
             },
         };
-
         const transporter = nodemailer.createTransport(config);
-
         const message = {
             from: process.env.EMAIL,
             to: userData.email,
             subject: 'OTP Verification',
             html: `<p>Your OTP is <b>${otp}</b>. It is valid for 5 minutes.</p>`,
         };
-
         await transporter.sendMail(message);
-
         await OtpVerificationModal.create({
-            aadhaarNo: aadhaar,
+            aadhaarNo: aadhaarNo,
             otp: hashOTP,
             createdAt: new Date(),
             expiresAt: otpExpiry,
         });
-
         res.status(200).json({ message: 'OTP sent successfully.' });
     } catch (error) {
         console.error('Error in generating OTP:', error.message);
@@ -112,26 +100,19 @@ router.post('/generateOTP', async (req, res) => {
 
 router.post('/verifyOTP', async (req, res) => {
     const { body: { aadhaarNo, otp } } = req;
-
     // if (!req.session.isLogged) {
     //     return res.status(401).json({ error: 'Unauthorized' });
     // }
-
     try {
-        const aadhaar = req.body.aadhaarNo;
-        const storedData = await OtpVerificationModal.findOne({ aadhaarNo: aadhaar });
-
+        const storedData = await OtpVerificationModal.findOne({ aadhaarNo: aadhaarNo });
         const verifyOTP = encrypt.comparePassword(otp, storedData.otp);
-
         if (!verifyOTP) return res.status(400).json({ message: "Invalid otp" });
-
         const currentTime = new Date();
-
         if (currentTime > storedData.expiresAt) return res.status(400).json({ message: "OTP has expired" });
-
         req.session.isVerified = true;
-
-        return res.status(200).json({ message: "OTP verification successful.", aadhaarNo: aadhaar, isVerified: true });
+        // Delet the otp
+        await OtpVerificationModal.findOneAndDelete({ aadhaarNo: aadhaarNo });
+        return res.status(200).json({ message: "OTP verification successful.", aadhaarNo: aadhaarNo, isVerified: true });
     } catch (error) {
         console.error('Error in verifying OTP:', error.message);
         res.status(500).json({ error: 'Failed to verify OTP.' });
@@ -200,7 +181,7 @@ router.get('/getComplaints/:id?', async (req, res) => {
     try {
         if (id) {
             console.log("Police Id ", id);
-            const data = await Allotment.findOne({ policeId: id});
+            const data = await Allotment.findOne({ policeId: id });
             if (!data) return res.status(200).json([]);
             return res.status(200).json(data.complaintId);
         } else {
@@ -214,7 +195,7 @@ router.get('/getComplaints/:id?', async (req, res) => {
 })
 
 router.post('/allotComplaint', async (req, res) => {
-    const { body : {policeId, complaintId}} = req;
+    const { body: { policeId, complaintId } } = req;
     try {
         const data = await Allotment.findOne({ policeId });
         if (!data) {
@@ -229,13 +210,13 @@ router.post('/allotComplaint', async (req, res) => {
         return res.sendStatus(200);
     } catch (error) {
         console.log("Error in allot complaint ", error);
-        return res.status(500).json({ message: "Server Error."});
+        return res.status(500).json({ message: "Server Error." });
     }
 })
 
 router.post('/removeAllotment', async (req, res) => {
     const { policeId, complaintId } = req.body;
-    
+
     try {
         const data = await Allotment.findOne({ policeId });
         if (!data) {
@@ -243,9 +224,9 @@ router.post('/removeAllotment', async (req, res) => {
         }
 
         data.complaintId.pull(complaintId);
-        
+
         await data.save();
-        
+
         return res.status(200).json({ message: 'Complaint removed successfully.' });
     } catch (error) {
         console.log("Error in remove complaint ", error);

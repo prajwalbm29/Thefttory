@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Button, Alert, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import userDetails from "./components/userData";
+import userDetails from './components/userData';
 import { serverURL } from "./apiData/data";
+import Loading from "./components/loadingScreen/loading";
 
 export default function AadhaarValidationPage() {
   const [aadhaarNo, setAadhaarNo] = useState("");
@@ -12,6 +13,13 @@ export default function AadhaarValidationPage() {
   const [otp, setOtp] = useState("");
   const [showOtpInput, setShowOtpInput] = useState(false);
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  if (loading) {
+    return (
+      <Loading />
+    )
+  }
 
   // Function to validate Aadhaar and fetch details
   const validateAadhaar = async () => {
@@ -20,6 +28,7 @@ export default function AadhaarValidationPage() {
       return;
     }
     try {
+      setLoading(true);
       const response = await fetch(`${serverURL}/api/getdata`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,17 +42,20 @@ export default function AadhaarValidationPage() {
       } else {
         setIsReadonly(true);
         setName(data.name);
-        setDob(data.dob);
+        setDob(data.dob.substring(0, 10));
       }
     } catch (error) {
       Alert.alert("Server Error", "Unable to validate Aadhaar.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Function to generate OTP
   const generateOtp = async () => {
     try {
-      const response = await fetch(`${serverURL}/api/police/generateOTP`, {
+      setLoading(true);
+      const response = await fetch(`${serverURL}/api/admin/generateOTP`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aadhaarNo }),
@@ -59,14 +71,16 @@ export default function AadhaarValidationPage() {
       }
     } catch (error) {
       Alert.alert("Server Error", "Unable to send OTP.");
+    } finally {
+      setLoading(false);
     }
   };
 
   // Function to verify OTP
   const verifyOtp = async () => {
-    console.log("Verify otp, ")
     try {
-      const response = await fetch(`${serverURL}/api/police/verifyOTP`, {
+      setLoading(true);
+      const response = await fetch(`${serverURL}/api/admin/verifyOTP`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aadhaarNo, otp }),
@@ -81,20 +95,25 @@ export default function AadhaarValidationPage() {
       }
 
       if (response.status === 400) {
-        Alert.alert("Error", `Invalid OTP or OTP Time out.`);
+        Alert.alert("Error", `Otp expired or Invalid Otp.`);
         return;
       }
 
-      if(response.status === 401) {
+      if (response.status === 401) {
         Alert.alert("Error", `OTP Timed out.`);
         return;
       }
 
-      userDetails.login(aadhaarNo);
+      await userDetails.login(parseInt(aadhaarNo));
       
-      router.push("/home");
+      const user = await userDetails.getUserData();
+      console.log("User stored in ", user);
+
+      router.push("./components/home");
     } catch (error) {
       Alert.alert("Server Error", `Unable to verify OTP. ${error}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -144,7 +163,7 @@ export default function AadhaarValidationPage() {
         </View>
       )}
 
-      <Button title="Navigate" onPress={() => router.replace("../components/home")} />
+      <Button title="Navigate" onPress={() => router.replace("./components/home")} />
     </View>
   );
 }
